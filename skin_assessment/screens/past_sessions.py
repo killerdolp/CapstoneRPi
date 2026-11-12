@@ -1,166 +1,186 @@
-"""Past sessions list screen (wireframe page 6)."""
+"""Past sessions: filterable list of session labels."""
 
 from __future__ import annotations
 
 from typing import List
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QRectF, QSize, Qt
+from PySide6.QtGui import QFont, QPainter
 from PySide6.QtWidgets import (
-    QButtonGroup,
     QHBoxLayout,
-    QLabel,
     QScrollArea,
+    QScroller,
+    QScrollerProperties,
+    QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
 
+from .. import icons
 from ..app_state import Session
-from ..widgets import Header, make_button
+from ..theme import GAP, C
+from ..widgets import (
+    InkButton,
+    LabelCard,
+    StatusFlag,
+    Thumb,
+    _TouchButton,
+    make_label,
+    paint_label,
+)
+from .base import Screen
 
 
-class SessionRow(QWidget):
-    """A single tappable row representing a saved session."""
+class SessionRow(_TouchButton):
+    """A tappable session label: solid edge complete, perforated incomplete."""
 
-    def __init__(self, session: Session, on_open) -> None:
+    def __init__(self, session: Session) -> None:
         super().__init__()
         self.session = session
-        self.on_open = on_open
-        self.setObjectName(
-            "SessionRow" if session.is_complete else "SessionRowIncomplete"
-        )
-        self.setCursor(Qt.PointingHandCursor)
-        self.setMinimumHeight(68)
+        self.setFixedHeight(78)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
 
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(12, 8, 16, 8)
-        layout.setSpacing(14)
+        lay = QHBoxLayout(self)
+        lay.setContentsMargins(10, 8, 14, 9)
+        lay.setSpacing(14)
+        thumb = Thumb(60)
+        thumb.set_path(session.photo_path if session.has_photo else None)
+        thumb.setAttribute(Qt.WA_TransparentForMouseEvents)
+        lay.addWidget(thumb)
 
-        # Thumbnail.
-        thumb = QLabel("img" if session.has_photo else "no img")
-        thumb.setAlignment(Qt.AlignCenter)
-        thumb.setFixedSize(52, 52)
-        thumb.setObjectName("RowThumb" if session.has_photo else "RowThumbEmpty")
-        layout.addWidget(thumb)
+        col = QVBoxLayout()
+        col.setSpacing(0)
+        ident = make_label(session.session_id, "title", QFont.Bold, mono=True)
+        when = make_label(session.saved_at_display, "small", QFont.Medium, color=C.INK_SOFT)
+        col.addWidget(ident)
+        col.addWidget(when)
+        lay.addLayout(col)
+        lay.addSpacing(10)
 
-        # Id + date.
-        text_col = QVBoxLayout()
-        text_col.setSpacing(2)
-        row_id = QLabel(session.session_id)
-        row_id.setObjectName("RowId")
-        row_date = QLabel(session.saved_at_display)
-        row_date.setObjectName("RowDate")
-        text_col.addWidget(row_id)
-        text_col.addWidget(row_date)
-        layout.addLayout(text_col)
+        ident.setFixedWidth(118)
+        when.setFixedWidth(150)
+        type_lbl = make_label(f"Type {session.field_or_dash(session.skin_type)}", "body", QFont.Medium)
+        grade_lbl = make_label(f"Grade {session.field_or_dash(session.erythema_grade)}", "body", QFont.Medium)
+        type_lbl.setFixedWidth(90)
+        grade_lbl.setFixedWidth(120)
+        lay.addWidget(type_lbl)
+        lay.addWidget(grade_lbl)
+        lay.addStretch(1)
 
-        layout.addStretch(1)
+        flag = StatusFlag()
+        flag.set_for_session(session)
+        lay.addWidget(flag)
+        lay.addSpacing(30)  # room for the painted chevron
 
-        # Status pill.
-        status = QLabel(session.status_label)
-        status.setObjectName(
-            "StatusComplete" if session.is_complete else "StatusIncomplete"
-        )
-        status.setAlignment(Qt.AlignCenter)
-        layout.addWidget(status)
+        for w in (ident, when, type_lbl, grade_lbl, flag):
+            w.setAttribute(Qt.WA_TransparentForMouseEvents)
 
-        chevron = QLabel("\u203a")
-        chevron.setStyleSheet("font-size: 22px; font-weight: 700;")
-        layout.addWidget(chevron)
-
-    def mouseReleaseEvent(self, event) -> None:  # noqa: N802 (Qt override)
-        if event.button() == Qt.LeftButton:
-            self.on_open(self.session)
-        super().mouseReleaseEvent(event)
+    def paintEvent(self, _event) -> None:  # noqa: N802
+        p = QPainter(self)
+        edge = "solid" if self.session.is_complete else "perforated"
+        paint_label(p, QRectF(self.rect()), edge, fill=C.PRESSED if self.isDown() else C.LABEL)
+        icons.paint(p, "next", QRectF(self.width() - 36, (self.height() - 24) / 2, 24, 24), C.INK, 2.4)
+        self._paint_focus(p)
 
 
-class PastSessionsScreen(QWidget):
+class PastSessionsScreen(Screen):
     def __init__(self, controller) -> None:
-        super().__init__()
-        self.controller = controller
+        super().__init__(controller, "Past sessions")
         self._filter = "all"
 
-        root = QVBoxLayout(self)
-        root.setContentsMargins(24, 16, 24, 16)
-        root.setSpacing(12)
+        from ..widgets import FilterTabs
 
-        self.header = Header("Past sessions")
-        self.header.back_clicked.connect(self.controller.go_home)
-        root.addWidget(self.header)
+        bar = QHBoxLayout()
+        self.tabs = FilterTabs([("all", "All", False), ("complete", "Complete", False),
+                                ("incomplete", "Incomplete", True)])
+        self.tabs.changed.connect(self._set_filter)
+        bar.addWidget(self.tabs)
+        bar.addStretch(1)
+        self.body.addLayout(bar)
 
-        # Filter chips.
-        chips = QHBoxLayout()
-        chips.setSpacing(12)
-        self.chip_group = QButtonGroup(self)
-        self.chip_group.setExclusive(True)
-
-        self.all_chip = make_button("All", "chip")
-        self.complete_chip = make_button("Complete", "chip")
-        self.incomplete_chip = make_button("Incomplete", "chip")
-        self.incomplete_chip.setProperty("dashed", "true")
-
-        for chip, key in (
-            (self.all_chip, "all"),
-            (self.complete_chip, "complete"),
-            (self.incomplete_chip, "incomplete"),
-        ):
-            chip.setCheckable(True)
-            chip.clicked.connect(lambda _=False, k=key: self._set_filter(k))
-            self.chip_group.addButton(chip)
-            chips.addWidget(chip)
-        chips.addStretch(1)
-        self.all_chip.setChecked(True)
-        root.addLayout(chips)
-
-        # Scrollable list.
         self.scroll = QScrollArea()
-        self.scroll.setObjectName("ScrollArea")
         self.scroll.setWidgetResizable(True)
         self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self.list_container = QWidget()
-        self.list_layout = QVBoxLayout(self.list_container)
-        self.list_layout.setContentsMargins(0, 0, 0, 0)
+        self.scroll.setFrameShape(QScrollArea.NoFrame)
+        self.container = QWidget()
+        self.list_layout = QVBoxLayout(self.container)
+        self.list_layout.setContentsMargins(0, 0, 4, 0)
         self.list_layout.setSpacing(10)
-        self.scroll.setWidget(self.list_container)
-        root.addWidget(self.scroll, 1)
+        self.scroll.setWidget(self.container)
+        self.body.addWidget(self.scroll, 1)
+        self.legend = make_label("Solid edge: complete  ·  Perforated edge: incomplete  ·  "
+                                 "Drag to scroll, tap a session to open it",
+                                 "small", QFont.Medium, color=C.INK_ON_LINER)
+        self.body.addWidget(self.legend)
 
-        helper = QLabel(
-            "Solid = complete, dashed = incomplete. Tap a row to open it."
-        )
-        helper.setObjectName("HelperText")
-        root.addWidget(helper)
+        # Touch: drag the list with a finger (kinetic), no overshoot bounce.
+        QScroller.grabGesture(self.scroll.viewport(), QScroller.LeftMouseButtonGesture)
+        scroller = QScroller.scroller(self.scroll.viewport())
+        props = scroller.scrollerProperties()
+        props.setScrollMetric(QScrollerProperties.VerticalOvershootPolicy,
+                              QScrollerProperties.OvershootAlwaysOff)
+        props.setScrollMetric(QScrollerProperties.DragStartDistance, 0.004)
+        scroller.setScrollerProperties(props)
 
     def _set_filter(self, key: str) -> None:
         self._filter = key
         self._rebuild()
 
     def _filtered(self) -> List[Session]:
-        # Newest first.
-        sessions = sorted(
-            self.controller.state.sessions,
-            key=lambda s: s.saved_at or 0,
-            reverse=True,
-        )
+        sessions = sorted(self.controller.state.sessions,
+                          key=lambda s: (s.saved_at is not None, s.saved_at), reverse=True)
         if self._filter == "complete":
             return [s for s in sessions if s.is_complete]
         if self._filter == "incomplete":
             return [s for s in sessions if not s.is_complete]
         return sessions
 
-    def _rebuild(self) -> None:
-        # Clear existing rows.
+    def _clear(self) -> None:
         while self.list_layout.count():
             item = self.list_layout.takeAt(0)
-            w = item.widget()
-            if w is not None:
-                w.deleteLater()
+            if item.widget() is not None:
+                item.widget().deleteLater()
 
-        for session in self._filtered():
-            row = SessionRow(session, self.controller.show_session_detail)
+    def _rebuild(self) -> None:
+        self._clear()
+        state = self.controller.state
+        self.tabs.set_label("all", f"All ({len(state.sessions)})")
+        self.tabs.set_label("complete", f"Complete ({len(state.complete_sessions())})")
+        self.tabs.set_label("incomplete", f"Incomplete ({len(state.incomplete_sessions())})")
+        self.tabs.setFixedWidth(self.tabs.sizeHint().width())
+
+        sessions = self._filtered()
+        self.legend.setVisible(bool(sessions))
+        if not sessions:
+            self.list_layout.addWidget(self._empty_state())
+        for session in sessions:
+            row = SessionRow(session)
+            row.clicked.connect(lambda _=False, s=session: self.controller.show_session_detail(s))
             self.list_layout.addWidget(row)
         self.list_layout.addStretch(1)
+        self.scroll.verticalScrollBar().setValue(0)
 
-        total = len(self.controller.state.sessions)
-        self.all_chip.setText(f"All ({total})")
+    def _empty_state(self) -> QWidget:
+        card = LabelCard("perforated", padding=(24, 20, 24, 20))
+        lay = QVBoxLayout(card)
+        lay.setSpacing(8)
+        if self._filter == "all":
+            title, body = ("No sessions on this device yet",
+                           "Sessions you save appear here, newest first.")
+        elif self._filter == "complete":
+            title, body = ("No complete sessions",
+                           "A session is complete once it has a skin type, an erythema grade and a photo.")
+        else:
+            title, body = ("No incomplete sessions", "Every saved session is complete.")
+        lay.addWidget(make_label(title, "title", QFont.Bold))
+        lay.addWidget(make_label(body, "body", color=C.INK_SOFT, wrap=True))
+        if self._filter == "all":
+            btn = InkButton("New session", "primary", icon="plus",
+                            on_click=self.controller.start_new_session)
+            btn.setFixedWidth(240)
+            lay.addSpacing(6)
+            lay.addWidget(btn)
+        return card
 
     def on_enter(self) -> None:
         self._rebuild()

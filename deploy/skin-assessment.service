@@ -1,0 +1,16 @@
+# systemd *user* unit: restarts the UI if it ever exits.
+# Install:  mkdir -p ~/.config/systemd/user && cp deploy/skin-assessment.service ~/.config/systemd/user/
+#           systemctl --user daemon-reload && systemctl --user enable --now skin-assessment
+# Adjust the path below if the repo is not at ~/CapstoneRPi.
+[Unit]
+Description=Skin Assessment kiosk UI
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+ExecStart=%h/CapstoneRPi/deploy/run-kiosk.sh
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=graphical-session.target

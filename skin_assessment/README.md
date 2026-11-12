@@ -1,50 +1,114 @@
-# Skin Assessment — PySide6 Frontend
+# Skin Assessment: PySide6 device app
 
-A low-fidelity front-end prototype for a clinical skin assessment workflow,
-built with PySide6 and sized for a 7-inch Raspberry Pi touchscreen
-(800×480, landscape). It implements all screens from the Figma wireframe.
+A native kiosk app for a clinical skin assessment device: a Raspberry Pi 5
+with a CSI camera and the official 7" Raspberry Pi Touch Display (800×480,
+landscape). It implements every screen from the Figma wireframe, plus live
+camera capture, on-device storage, and kiosk mode.
 
-## Run
+## Run on a PC (development)
 
 ```bash
-.venv/bin/python -m skin_assessment.main
+python -m venv .venv
+.venv/bin/pip install -r requirements.txt        # Windows: .venv\Scripts\pip
+.venv/bin/python -m skin_assessment.main --demo  # demo data, simulated camera
 ```
 
-## Screens (mapped to the wireframe)
+| Flag | Effect |
+|---|---|
+| `--kiosk` | Fullscreen, frameless, hidden cursor |
+| `--demo` | Uses `<data-dir>/demo` with labelled demonstration sessions. The header shows **DEMO DATA** |
+| `--camera auto\|pi\|sim` | `auto` picks the Pi camera when Picamera2 is installed, otherwise a simulated camera |
+| `--data-dir PATH` | Where sessions are stored (default `~/skin_assessment_data`, or `$SKIN_ASSESSMENT_DATA`) |
 
-| Screen                 | Wireframe page | File                              |
-|------------------------|----------------|-----------------------------------|
-| Home                   | 5              | `screens/home.py`                 |
-| Patient assessment     | 1              | `screens/assessment.py`           |
-| Take photo             | 2              | `screens/take_photo.py`           |
-| Confirm photo          | 3              | `screens/confirm_photo.py`        |
-| Session saved          | 4              | `screens/session_saved.py`        |
-| Past sessions          | 6              | `screens/past_sessions.py`        |
-| Session detail         | 7              | `screens/session_detail.py`       |
-| Export data            | 8 & 10         | `screens/export_data.py`          |
-| Export complete        | 9              | `screens/export_complete.py`      |
-| Export failed          | 11             | `screens/export_failed.py`        |
+**Ctrl+D** toggles the simulated clinical SSD connection. Toggling it during an
+export triggers the *Export failed* state. Set `SKIN_REDUCED_MOTION=1` to
+turn off the label print animation.
+
+## Install on the Raspberry Pi 5
+
+Raspberry Pi OS Bookworm (64-bit):
+
+```bash
+sudo apt update && sudo apt install -y python3-picamera2 python3-venv
+rpicam-hello --list-cameras          # the camera must be listed here
+git clone <repo> ~/CapstoneRPi && cd ~/CapstoneRPi
+python3 -m venv --system-site-packages .venv   # lets the venv see picamera2
+.venv/bin/pip install -r requirements.txt
+./deploy/run-kiosk.sh                 # try it
+```
+
+Camera notes:
+- The Pi 5 uses the narrow 22-pin camera connectors (CAM/DISP 0 or 1). Older
+  camera modules need a 22-to-15-pin cable.
+- If `rpicam-hello --list-cameras` shows nothing, the app shows *Camera not
+  available* and lets the user save sessions as incomplete. It never falls
+  back to a simulated camera on the device.
+- With Camera Module 3, continuous autofocus runs in the viewfinder, and a
+  focus cycle runs before each still. Stills are saved as JPEG at full sensor
+  resolution (quality 95).
+
+### Start on boot (kiosk)
+
+Choose **one** of these:
+
+- **labwc autostart** (default desktop on current Bookworm): add
+  `/home/<user>/CapstoneRPi/deploy/run-kiosk.sh &` to `~/.config/labwc/autostart`.
+- **systemd user service** (restarts the app if it exits): see the header of
+  `deploy/skin-assessment.service`.
+
+Also turn off screen blanking (`sudo raspi-config` → Display Options → Screen
+Blanking → No). Set the desktop to auto-login so the kiosk starts without a
+keyboard.
+
+## Data on the device
+
+```
+~/skin_assessment_data/
+  sessions/S-0001.json     one record per session, written atomically (fsync + rename)
+  photos/S-0001_r2.jpg     one photo per saved revision; older photos are never deleted
+  pending/capture.jpg      the last capture, kept until it is confirmed or retaken
+```
+
+Each save creates a new `revision`. *Edit session* works on a copy, so leaving
+the edit without saving leaves the stored record unchanged.
+
+## Design
+
+The visual system is *Specimen Label*: each record looks like a clinical label
+printed in thermal black on die-cut stock. A session's state is always shown by
+line style as well as colour:
+
+| Edge | Meaning |
+|---|---|
+| Solid | Complete |
+| Perforated (dashed) | Incomplete |
+| Hatched | Unavailable (disabled action, missing photo, no camera/SSD) |
+| STAT orange flag | Needs attention; always carries a text label |
+
+Type is Atkinson Hyperlegible Next and Mono (SIL OFL, bundled in
+`assets/fonts`). It uses four fixed sizes: 14, 17, 23 and 36 px. Touch targets
+are at least 48 px, and primary actions are 60 px. Tokens live in `theme.py`.
 
 ## Architecture
 
-- `main.py` — `MainWindow` hosts a `QStackedWidget`. It acts as the navigation
-  controller: screens call methods like `show_take_photo()` / `go_home()`.
-- `app_state.py` — `AppState` + `Session` dataclass. Sessions live in memory and
-  are seeded with the four sample sessions from the wireframe.
-- `theme.py` — shared QSS stylesheet and the 800×480 size constants.
-- `widgets.py` — reusable `Header`, `OptionButton` (toggle), `ImagePlaceholder`
-  (crossed grey box), and a `make_button(variant=...)` helper.
+- `main.py`: `MainWindow` is the navigation controller and runs the session
+  workflow (draft copy, pending photo, discard confirmation, save).
+- `app_state.py`: the `Session` model, `SessionStore` (JSON + JPEG
+  persistence) and `AppState` (session list, SSD status, `changed` signal).
+- `camera.py`: `PiCamera` (Picamera2: preview thread + full-res still),
+  `SimulatedCamera`, and `UnavailableCamera`.
+- `export.py`: `SimulatedExporter` (see *Not yet implemented*).
+- `widgets.py`: the painted component set (label cards, buttons, grade
+  selector, viewfinder, Code 128 barcode, running head, print feed,
+  confirmation sheet).
+- `screens/`: one module per wireframe screen.
 
-## Demoing SSD states
+## Not yet implemented
 
-Press **Ctrl+D** to toggle the Clinical SSD between connected and not-connected.
-This drives the Export screen's connected (page 8) vs not-connected (page 10)
-states and enables/disables the export button. The Export failed screen
-(page 11) is reachable via `show_export_failed()`.
-
-## Integration points (left as stubs for the capstone backend)
-
-- Camera capture in `take_photo.py` (`_capture`) just flips a `has_photo` flag.
-- `save_draft()` in `main.py` stamps a save time and keeps the session in memory;
-  wire this to real persistence.
-- Export actions navigate to the result screens without writing files.
+- **SSD export.** There is no USB SSD detection, and no files are written yet.
+  `export.SimulatedExporter._write_record` is the integration point. SSD state
+  is simulated with Ctrl+D.
+- **Schema version.** `SCHEMA_VERSION` in `app_state.py` is provisional (`1.0`).
+- **Colour calibration.** There is no white-balance lock or colour reference
+  workflow yet. Clinical photography will probably need fixed AWB/exposure
+  settings.

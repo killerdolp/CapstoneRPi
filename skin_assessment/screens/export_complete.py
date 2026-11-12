@@ -1,72 +1,46 @@
-"""Export complete screen (wireframe page 9)."""
+"""Export complete."""
 
 from __future__ import annotations
 
-from datetime import datetime
+from PySide6.QtGui import QFont
+from PySide6.QtWidgets import QHBoxLayout, QVBoxLayout
 
-from PySide6.QtCore import Qt
-from PySide6.QtWidgets import (
-    QGridLayout,
-    QLabel,
-    QVBoxLayout,
-    QWidget,
-)
-
-from ..widgets import make_button
+from ..theme import C
+from ..widgets import Icon, InkButton, LabelCard, ValueList, make_label
+from .base import Screen
 
 
-class ExportCompleteScreen(QWidget):
+class ExportCompleteScreen(Screen):
     def __init__(self, controller) -> None:
-        super().__init__()
-        self.controller = controller
+        super().__init__(controller, "Export complete", show_back=False)
 
-        root = QVBoxLayout(self)
-        root.setContentsMargins(24, 20, 24, 16)
-        root.setSpacing(16)
+        card = LabelCard("solid", padding=(22, 14, 22, 12))
+        lay = QVBoxLayout(card)
+        lay.setSpacing(6)
+        head = QHBoxLayout()
+        head.setSpacing(12)
+        head.addWidget(Icon("check", 34, C.INK, 2.8))
+        head.addWidget(make_label("Saved to clinical data SSD", "title", QFont.Bold))
+        head.addStretch(1)
+        lay.addLayout(head)
+        self.values = ValueList()
+        self.values.add_row("File", mono=True)
+        self.values.add_row("Sessions", mono=True)
+        self.values.add_row("Photos", mono=True)
+        self.values.add_row("Schema", mono=True)
+        self.values.add_row("Finished", mono=True)
+        lay.addWidget(self.values)
+        self.body.addWidget(card, 1)
 
-        title = QLabel("Export complete")
-        title.setObjectName("ScreenTitle")
-        root.addWidget(title)
-
-        # Confirmation banner.
-        banner = QLabel("[ saved to clinical data SSD ]")
-        banner.setObjectName("ImagePlaceholder")
-        banner.setAlignment(Qt.AlignCenter)
-        banner.setMinimumHeight(70)
-        banner.setStyleSheet("font-weight: 700;")
-        root.addWidget(banner)
-
-        # Summary card.
-        card = QWidget()
-        card.setObjectName("Card")
-        grid = QGridLayout(card)
-        grid.setContentsMargins(16, 14, 16, 14)
-        grid.setHorizontalSpacing(16)
-        grid.setVerticalSpacing(10)
-
-        self.file_value = self._add_row(grid, 0, "File")
-        self.sessions_value = self._add_row(grid, 1, "Sessions")
-        self.schema_value = self._add_row(grid, 2, "Schema")
-        self.dest_value = self._add_row(grid, 3, "Destination")
-        root.addWidget(card)
-
-        root.addStretch(1)
-
-        self.done_btn = make_button("Done", "primary", self.controller.go_home)
-        self.done_btn.setMinimumHeight(60)
-        root.addWidget(self.done_btn)
-
-    def _add_row(self, grid: QGridLayout, row: int, label: str) -> QLabel:
-        grid.addWidget(QLabel(label), row, 0)
-        value = QLabel("—")
-        value.setObjectName("ValueStrong")
-        value.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        grid.addWidget(value, row, 1)
-        return value
+        self.done_btn = InkButton("Done", "primary", icon="home", on_click=controller.go_home)
+        self.body.addWidget(self.done_btn)
 
     def on_enter(self) -> None:
-        today = datetime.now().strftime("%Y-%m-%d")
-        self.file_value.setText(f"metadata_{today}.json")
-        self.sessions_value.setText(str(len(self.controller.state.sessions)))
-        self.schema_value.setText("[Schema Version]")
-        self.dest_value.setText("Clinical data SSD")
+        r = self.controller.last_export
+        if r is None:
+            return
+        self.values.set("File", r.file_name)
+        self.values.set("Sessions", str(r.written))
+        self.values.set("Photos", str(r.photos))
+        self.values.set("Schema", f"v{r.schema}")
+        self.values.set("Finished", f"{r.finished_at:%H:%M:%S}")

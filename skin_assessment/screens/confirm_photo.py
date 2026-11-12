@@ -1,66 +1,67 @@
-"""Confirm photo screen (wireframe page 3): step 3 of the new-session flow."""
+"""Step 3 of 4: review the captured photo, then confirm and save."""
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
-from PySide6.QtWidgets import (
-    QHBoxLayout,
-    QLabel,
-    QVBoxLayout,
-    QWidget,
-)
+from pathlib import Path
 
-from ..widgets import Header, ImagePlaceholder, make_button
+from PySide6.QtGui import QFont, QImageReader
+from PySide6.QtWidgets import QHBoxLayout, QVBoxLayout
+
+from ..theme import GAP, C
+from ..widgets import InkButton, LabelCard, PhotoView, ValueList, make_label
+from .base import Screen
 
 
-class ConfirmPhotoScreen(QWidget):
+class ConfirmPhotoScreen(Screen):
     def __init__(self, controller) -> None:
-        super().__init__()
-        self.controller = controller
+        super().__init__(controller, "Confirm photo", step=3)
 
-        root = QVBoxLayout(self)
-        root.setContentsMargins(24, 16, 24, 16)
-        root.setSpacing(12)
+        row = QHBoxLayout()
+        row.setSpacing(GAP)
+        self.preview = PhotoView("No photo captured")
+        row.addWidget(self.preview, 1)
 
-        self.header = Header("Confirm photo (step 3)")
-        self.header.back_clicked.connect(self.controller.show_take_photo)
-        root.addWidget(self.header)
-
-        body = QHBoxLayout()
-        body.setSpacing(16)
-
-        self.preview = ImagePlaceholder("[ captured photo preview ]")
-        body.addWidget(self.preview, 3)
-
-        right = QVBoxLayout()
-        right.setSpacing(12)
-
-        helper = QLabel(
-            "Confirming stamps the save time and writes the session to file."
-        )
-        helper.setObjectName("HelperText")
-        helper.setWordWrap(True)
-        helper.setAlignment(Qt.AlignTop)
-        right.addWidget(helper)
-
-        right.addStretch(1)
-
-        self.retake_btn = make_button(
-            "Retake", "outline", self.controller.show_take_photo
-        )
-        self.confirm_btn = make_button(
-            "Confirm & save", "primary", self._confirm
-        )
-        right.addWidget(self.retake_btn)
-        right.addWidget(self.confirm_btn)
-        body.addLayout(right, 1)
-
-        root.addLayout(body, 1)
+        side = QVBoxLayout()
+        side.setSpacing(GAP)
+        card = LabelCard("plain", padding=(16, 8, 16, 12))
+        cl = QVBoxLayout(card)
+        cl.setSpacing(6)
+        self.values = ValueList()
+        self.values.add_row("Skin type")
+        self.values.add_row("Erythema grade")
+        self.values.add_row("Photo", mono=True)
+        cl.addWidget(self.values)
+        note = make_label("Confirming stamps the save time and writes the session to this device.",
+                          "small", color=C.INK_SOFT, wrap=True)
+        cl.addWidget(note)
+        side.addWidget(card)
+        side.addStretch(1)
+        self.retake_btn = InkButton("Retake", "secondary", icon="retake", on_click=self._retake)
+        self.confirm_btn = InkButton("Confirm & save", "primary", icon="check", on_click=self._confirm)
+        side.addWidget(self.retake_btn)
+        side.addWidget(self.confirm_btn)
+        for w in (card, self.retake_btn, self.confirm_btn):
+            w.setFixedWidth(288)
+        row.addLayout(side)
+        self.body.addLayout(row, 1)
 
     def on_enter(self) -> None:
-        pass
+        draft = self.controller.draft
+        path = self.controller.pending_photo
+        self.head.set_session_id(draft.session_id if draft else None)
+        self.preview.set_path(Path(path) if path else None)
+        if draft:
+            self.values.set("Skin type", draft.field_or_dash(draft.skin_type))
+            self.values.set("Erythema grade", draft.field_or_dash(draft.erythema_grade))
+        size = QImageReader(str(path)).size() if path else None
+        self.values.set("Photo", f"{size.width()}×{size.height()}" if size and size.isValid() else "—")
+        self.confirm_btn.setEnabled(bool(path))
+
+    def on_back(self) -> None:
+        self._retake()
+
+    def _retake(self) -> None:
+        self.controller.retake_photo()
 
     def _confirm(self) -> None:
-        self.controller.draft_session.has_photo = True
-        self.controller.save_draft(complete=True)
-        self.controller.show_session_saved()
+        self.controller.save_draft()

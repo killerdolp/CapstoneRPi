@@ -1,0 +1,4 @@
+# Desktop development: pip install -r requirements.txt
+# On the Raspberry Pi, Picamera2 comes from apt (python3-picamera2); create the
+# venv with --system-site-packages so it is visible. See skin_assessment/README.md.
+PySide6>=6.6

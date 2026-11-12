@@ -1,147 +1,180 @@
-"""Export data screen (wireframe pages 8 & 10).
-
-Renders the connected state (page 8) or the not-connected state (page 10)
-depending on AppState.ssd_connected.
-"""
+"""Export data: choose what to export, check the destination, export."""
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
-from PySide6.QtWidgets import (
-    QCheckBox,
-    QGridLayout,
-    QHBoxLayout,
-    QLabel,
-    QVBoxLayout,
-    QWidget,
+from PySide6.QtCore import QRectF, Qt
+from PySide6.QtGui import QFont, QPainter
+from PySide6.QtWidgets import QHBoxLayout, QVBoxLayout, QWidget
+
+from ..app_state import SCHEMA_VERSION
+from ..export import ExportRequest
+from ..theme import GAP, C, font, q
+from ..widgets import (
+    CheckRow,
+    Icon,
+    InkButton,
+    LabelCard,
+    StatusFlag,
+    ValueList,
+    make_label,
+    paint_label,
 )
+from .base import Screen
 
-from ..widgets import Header, make_button
 
+class ProgressStrip(QWidget):
+    """Export progress printed as a label filling with ink, record by record."""
 
-class ExportDataScreen(QWidget):
-    def __init__(self, controller) -> None:
+    def __init__(self) -> None:
         super().__init__()
-        self.controller = controller
+        self.setFixedHeight(60)
+        self._done, self._total = 0, 0
 
-        root = QVBoxLayout(self)
-        root.setContentsMargins(24, 16, 24, 16)
-        root.setSpacing(12)
+    def set_progress(self, done: int, total: int) -> None:
+        self._done, self._total = done, total
+        self.update()
 
-        self.header = Header("Export data")
-        self.header.back_clicked.connect(self.controller.go_home)
-        root.addWidget(self.header)
+    def paintEvent(self, _event) -> None:  # noqa: N802
+        p = QPainter(self)
+        rect = QRectF(self.rect())
+        paint_label(p, rect, "solid")
+        frac = (self._done / self._total) if self._total else 0.0
+        fill = rect.adjusted(3, 3, -3, -4)
+        fill.setWidth(fill.width() * frac)
+        p.setPen(Qt.NoPen)
+        p.setBrush(q(C.INK))
+        p.drawRoundedRect(fill, 7, 7)
+        text = f"Writing {self._done} of {self._total} sessions…"
+        p.setFont(font("body", QFont.Bold))
+        # Draw text twice, clipped, so it stays legible over ink and stock.
+        for clip, color in ((QRectF(fill), C.LABEL), (QRectF(fill.right(), 0, rect.width(), rect.height()), C.INK)):
+            p.save()
+            p.setClipRect(clip)
+            p.setPen(q(color))
+            p.drawText(rect, Qt.AlignCenter, text)
+            p.restore()
 
-        columns = QHBoxLayout()
-        columns.setSpacing(16)
 
-        # ---- Left column: Data to export + Output ----
-        left = QVBoxLayout()
-        left.setSpacing(12)
+class ExportDataScreen(Screen):
+    def __init__(self, controller) -> None:
+        super().__init__(controller, "Export data")
 
-        data_card = QWidget()
-        data_card.setObjectName("Card")
-        data_layout = QVBoxLayout(data_card)
-        data_layout.setContentsMargins(16, 12, 16, 12)
-        data_layout.setSpacing(8)
-        title = QLabel("Data to export")
-        title.setObjectName("CardTitle")
-        data_layout.addWidget(title)
+        cols = QHBoxLayout()
+        cols.setSpacing(GAP)
 
-        self.complete_cb = QCheckBox()
-        self.incomplete_cb = QCheckBox()
-        self.photos_cb = QCheckBox("Include photos")
+        # ---- left: what to export --------------------------------------
+        data = LabelCard("plain", padding=(16, 12, 16, 10))
+        dl = QVBoxLayout(data)
+        dl.setSpacing(2)
+        dl.addWidget(make_label("Data to export", "body", QFont.Bold))
+        self.complete_cb = CheckRow("Complete sessions")
+        self.incomplete_cb = CheckRow("Incomplete sessions")
+        self.photos_cb = CheckRow("Include photos")
         self.complete_cb.setChecked(True)
         self.photos_cb.setChecked(True)
-        data_layout.addWidget(self.complete_cb)
-        data_layout.addWidget(self.incomplete_cb)
-        data_layout.addWidget(self.photos_cb)
-        left.addWidget(data_card)
+        for cb in (self.complete_cb, self.incomplete_cb, self.photos_cb):
+            cb.toggled.connect(self._update_ready)
+            dl.addWidget(cb)
+        dl.addSpacing(6)
+        self.output = ValueList()
+        self.output.add_row("Format", "JSON + ZIP")
+        self.output.add_row("Schema", f"v{SCHEMA_VERSION}", mono=True)
+        dl.addWidget(self.output)
+        dl.addStretch(1)
+        cols.addWidget(data, 1)
 
-        output_card = QWidget()
-        output_card.setObjectName("Card")
-        out_grid = QGridLayout(output_card)
-        out_grid.setContentsMargins(16, 12, 16, 12)
-        out_grid.setHorizontalSpacing(16)
-        out_grid.setVerticalSpacing(8)
-        out_title = QLabel("Output")
-        out_title.setObjectName("CardTitle")
-        out_grid.addWidget(out_title, 0, 0, 1, 2)
-        out_grid.addWidget(QLabel("Format"), 1, 0)
-        fmt = QLabel("JSON, zip")
-        fmt.setObjectName("ValueStrong")
-        fmt.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        out_grid.addWidget(fmt, 1, 1)
-        out_grid.addWidget(QLabel("Schema"), 2, 0)
-        schema = QLabel("[Schema Version]")
-        schema.setObjectName("ValueStrong")
-        schema.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        out_grid.addWidget(schema, 2, 1)
-        left.addWidget(output_card)
-        left.addStretch(1)
-        columns.addLayout(left, 1)
+        # ---- right: destination ----------------------------------------
+        self.dest = LabelCard("solid", padding=(16, 12, 16, 14))
+        rl = QVBoxLayout(self.dest)
+        rl.setSpacing(8)
+        rl.addWidget(make_label("Destination", "body", QFont.Bold))
+        head = QHBoxLayout()
+        head.setSpacing(10)
+        self.dest_icon = Icon("drive", 40, C.INK, 2)
+        head.addWidget(self.dest_icon)
+        name_col = QVBoxLayout()
+        name_col.setSpacing(0)
+        name_col.addWidget(make_label("Clinical data SSD", "title", QFont.Bold))
+        self.dest_status = make_label("", "body", QFont.Medium, color=C.INK_SOFT)
+        name_col.addWidget(self.dest_status)
+        head.addLayout(name_col)
+        head.addStretch(1)
+        rl.addLayout(head)
+        self.dest_flag = StatusFlag("NOT CONNECTED", "stat")
+        rl.addWidget(self.dest_flag, 0, Qt.AlignLeft)
+        self.dest_help = make_label("", "body", color=C.INK, wrap=True)
+        rl.addWidget(self.dest_help)
+        rl.addStretch(1)
+        cols.addWidget(self.dest, 1)
 
-        # ---- Right column: Destination + optional warning ----
-        right = QVBoxLayout()
-        right.setSpacing(12)
+        self.body.addLayout(cols, 1)
 
-        self.dest_card = QWidget()
-        self.dest_card.setObjectName("DashedCard")
-        dest_layout = QVBoxLayout(self.dest_card)
-        dest_layout.setContentsMargins(16, 12, 16, 12)
-        dest_layout.setSpacing(6)
-        dest_title = QLabel("Destination")
-        dest_title.setObjectName("CardTitle")
-        dest_layout.addWidget(dest_title)
-        dest_layout.addWidget(QLabel("Clinical data SSD"))
-        self.dest_status = QLabel()
-        dest_layout.addWidget(self.dest_status)
-        right.addWidget(self.dest_card)
+        self.reason = make_label("", "small", QFont.Medium, color=C.INK_ON_LINER)
+        self.body.addWidget(self.reason)
+        self.export_btn = InkButton("Export to SSD", "primary", icon="export", on_click=self._export)
+        self.body.addWidget(self.export_btn)
+        self.progress = ProgressStrip()
+        self.progress.setVisible(False)
+        self.body.addWidget(self.progress)
 
-        # Warning card (shown only when not connected).
-        self.warning_card = QWidget()
-        self.warning_card.setObjectName("WarningCard")
-        warn_layout = QVBoxLayout(self.warning_card)
-        warn_layout.setContentsMargins(16, 12, 16, 12)
-        warn_layout.setSpacing(4)
-        warn_title = QLabel("SSD not connected")
-        warn_title.setObjectName("CardTitle")
-        warn_layout.addWidget(warn_title)
-        warn_layout.addWidget(QLabel("Connect an SSD to continue."))
-        right.addWidget(self.warning_card)
+        ex = controller.exporter
+        ex.progress.connect(self._on_progress)
+        ex.finished.connect(self._on_finished)
 
-        right.addStretch(1)
-        columns.addLayout(right, 1)
-
-        root.addLayout(columns, 1)
-
-        # ---- Footer: Export button ----
-        self.export_btn = make_button("Export to SSD", "primary", self._export)
-        self.export_btn.setMinimumHeight(60)
-        root.addWidget(self.export_btn)
-
+    # ---- state -----------------------------------------------------------
     def on_enter(self) -> None:
-        connected = self.controller.state.ssd_connected
-        self.incomplete_cb.setText(
-            f"Incomplete sessions ({len(self.controller.state.incomplete_sessions())})"
-        )
-        self.complete_cb.setText(
-            f"Complete sessions ({len(self.controller.state.complete_sessions())})"
-        )
+        state = self.controller.state
+        self.complete_cb.set_detail(str(len(state.complete_sessions())))
+        self.incomplete_cb.set_detail(str(len(state.incomplete_sessions())))
+        connected = state.ssd_connected
+        self.dest.set_edge("solid" if connected else "perforated", hatch=not connected)
+        self.dest_icon.set("drive" if connected else "drive-off")
+        self.dest_status.setText("Connected" if connected else "Not connected")
+        self.dest_flag.setVisible(not connected)
+        self.dest_help.setText("Ready to receive the export." if connected
+                               else "Connect the clinical data SSD to continue.")
+        running = self.controller.exporter.running
+        self.export_btn.setVisible(not running)
+        self.progress.setVisible(running)
+        self.head.back.setEnabled(not running)
+        self._update_ready()
 
-        status = "connected" if connected else "not connected"
-        self.dest_status.setText(f"Status: {status}")
-        self.warning_card.setVisible(not connected)
+    def _request(self) -> ExportRequest:
+        return ExportRequest(self.complete_cb.isChecked(), self.incomplete_cb.isChecked(),
+                             self.photos_cb.isChecked())
 
-        self.export_btn.setEnabled(connected)
-        if connected:
-            self.export_btn.setText("Export to SSD")
+    def _update_ready(self, *_args) -> None:
+        state = self.controller.state
+        count = len(self._request().select(state))
+        if not state.ssd_connected:
+            ok, why = False, "Export is unavailable until an SSD is connected."
+        elif count == 0:
+            ok, why = False, "Nothing selected to export. Choose a group that has sessions."
         else:
-            self.export_btn.setText(
-                "Export to SSD\nUnavailable until an SSD is connected"
-            )
+            ok, why = True, f"{count} session{'s' if count != 1 else ''} will be exported."
+        self.export_btn.setEnabled(ok)
+        self.reason.setText(why)
 
+    # ---- export ----------------------------------------------------------
     def _export(self) -> None:
         if not self.controller.state.ssd_connected:
             return
-        self.controller.show_export_complete()
+        self.controller.last_export_request = self._request()
+        self.export_btn.setVisible(False)
+        self.progress.setVisible(True)
+        self.head.back.setEnabled(False)
+        for cb in (self.complete_cb, self.incomplete_cb, self.photos_cb):
+            cb.setEnabled(False)
+        self.controller.exporter.start(self.controller.last_export_request)
+
+    def _on_progress(self, done: int, total: int) -> None:
+        self.progress.set_progress(done, total)
+        self.reason.setText("Keep the SSD connected until the export finishes.")
+
+    def _on_finished(self, result) -> None:
+        for cb in (self.complete_cb, self.incomplete_cb, self.photos_cb):
+            cb.setEnabled(True)
+        self.progress.setVisible(False)
+        self.export_btn.setVisible(True)
+        self.head.back.setEnabled(True)
+        self.controller.export_finished(result)
