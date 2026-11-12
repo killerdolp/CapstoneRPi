@@ -17,6 +17,7 @@ from __future__ import annotations
 import math
 import queue
 import random
+import sys
 import threading
 import time
 from enum import Enum
@@ -272,26 +273,45 @@ class PiCamera(CameraBackend):
 def create_camera(mode: str = "auto") -> CameraBackend:
     """``mode``: auto | pi | sim.
 
-    auto: use the Pi camera when Picamera2 is importable (i.e. on the Pi),
-    otherwise simulate. On the Pi with no camera attached the result is an
-    UnavailableCamera, never a silent simulation.
+    auto: on a Raspberry Pi always use the real camera (or report it as
+    unavailable, with the reason); simulate only on other computers.
     """
     if mode == "sim":
+        print("[camera] simulated camera (forced with --camera sim)", file=sys.stderr)
         return SimulatedCamera()
     try:
         from picamera2 import Picamera2  # type: ignore
         from libcamera import controls  # type: ignore
-    except ImportError:
-        if mode == "pi":
-            return UnavailableCamera("Picamera2 is not installed.")
+    except ImportError as exc:
+        if mode == "pi" or is_raspberry_pi():
+            reason = (
+                f"The camera library could not be loaded ({exc}). Install "
+                "python3-picamera2 and create the virtualenv with "
+                "--system-site-packages."
+            )
+            print(f"[camera] unavailable: {reason}", file=sys.stderr)
+            return UnavailableCamera(reason)
+        print(f"[camera] picamera2 not importable ({exc}); using simulated camera",
+              file=sys.stderr)
         return SimulatedCamera()
 
     try:
         if not Picamera2.global_camera_info():
-            return UnavailableCamera(
-                "No camera found on the camera connector. Check the ribbon "
-                "cable, then restart the device."
-            )
-        return PiCamera(Picamera2(), controls)
+            reason = ("No camera found on the camera connector. Power off, "
+                      "check the ribbon cable, then restart the device.")
+            print(f"[camera] unavailable: {reason}", file=sys.stderr)
+            return UnavailableCamera(reason)
+        camera = PiCamera(Picamera2(), controls)
+        print(f"[camera] live: {camera.description}", file=sys.stderr)
+        return camera
     except Exception as exc:  # pragma: no cover - hardware
+        print(f"[camera] could not open camera: {exc}", file=sys.stderr)
         return UnavailableCamera(f"Camera could not be opened: {exc}")
+
+
+def is_raspberry_pi() -> bool:
+    try:
+        model = Path("/proc/device-tree/model").read_text(errors="ignore")
+    except OSError:
+        return False
+    return "Raspberry Pi" in model
