@@ -1,4 +1,4 @@
-"""Step 4 of 4: the saved session's label feeds out of the printer."""
+"""Step 5 of 5: the saved session's label feeds out of the printer."""
 
 from __future__ import annotations
 
@@ -70,7 +70,7 @@ class SessionLabel(LabelCard):
 
 class SessionSavedScreen(Screen):
     def __init__(self, controller) -> None:
-        super().__init__(controller, "Session saved", step=4)
+        super().__init__(controller, "Session saved", step=5)
         self.head.back.setVisible(False)
 
         row = QHBoxLayout()

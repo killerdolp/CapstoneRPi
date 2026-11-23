@@ -1,4 +1,4 @@
-"""Step 3 of 4: review the captured photo, then confirm and save."""
+"""Step 4 of 5: review the captured photo, then confirm and save."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ from .base import Screen
 
 class ConfirmPhotoScreen(Screen):
     def __init__(self, controller) -> None:
-        super().__init__(controller, "Confirm photo", step=3)
+        super().__init__(controller, "Confirm photo", step=4)
 
         row = QHBoxLayout()
         row.setSpacing(GAP)

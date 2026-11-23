@@ -995,12 +995,14 @@ class Thumb(QWidget):
 # Running head
 # ---------------------------------------------------------------------------
 class StepMarks(QWidget):
-    """'Step n of 4' with four printed tick segments."""
+    """'Step n of 5' with one printed tick segment per step."""
 
-    def __init__(self, step: int, total: int = 4, parent: Optional[QWidget] = None) -> None:
+    SEG_W, SEG_GAP = 24, 4
+
+    def __init__(self, step: int, total: int = 5, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
         self._step, self._total = step, total
-        self.setFixedSize(112, 40)
+        self.setFixedSize(max(112, total * (self.SEG_W + self.SEG_GAP)), 40)
 
     def paintEvent(self, _event) -> None:  # noqa: N802
         p = QPainter(self)
@@ -1009,7 +1011,7 @@ class StepMarks(QWidget):
         p.setPen(q(C.INK_ON_LINER))
         p.drawText(QRectF(0, 0, self.width(), 20), Qt.AlignLeft | Qt.AlignVCenter,
                    f"Step {self._step} of {self._total}")
-        seg_w, gap = 24, 4
+        seg_w, gap = self.SEG_W, self.SEG_GAP
         for i in range(self._total):
             r = QRectF(i * (seg_w + gap), 26, seg_w, 6)
             if i < self._step:

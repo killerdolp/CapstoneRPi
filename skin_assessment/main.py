@@ -28,7 +28,7 @@ from PySide6.QtWidgets import QApplication, QMainWindow, QStackedWidget, QVBoxLa
 from .app_state import DEFAULT_DATA_DIR, AppState, Session
 from .camera import CameraBackend, create_camera
 from .export import ExportRequest, ExportResult, SimulatedExporter
-from .screens.assessment import AssessmentScreen
+from .screens.assessment import ErythemaGradeScreen, SkinTypeScreen
 from .screens.confirm_photo import ConfirmPhotoScreen
 from .screens.export_complete import ExportCompleteScreen
 from .screens.export_data import ExportDataScreen
@@ -73,7 +73,8 @@ class MainWindow(QMainWindow):
 
         self.screens: Dict[str, QWidget] = {
             "home": HomeScreen(self),
-            "assessment": AssessmentScreen(self),
+            "skin_type": SkinTypeScreen(self),
+            "erythema_grade": ErythemaGradeScreen(self),
             "take_photo": TakePhotoScreen(self),
             "confirm_photo": ConfirmPhotoScreen(self),
             "session_saved": SessionSavedScreen(self),
@@ -123,8 +124,11 @@ class MainWindow(QMainWindow):
     def go_home(self) -> None:
         self._navigate("home")
 
-    def show_assessment(self) -> None:
-        self._navigate("assessment")
+    def show_skin_type(self) -> None:
+        self._navigate("skin_type")
+
+    def show_erythema_grade(self) -> None:
+        self._navigate("erythema_grade")
 
     def show_take_photo(self) -> None:
         self._navigate("take_photo")
@@ -147,7 +151,7 @@ class MainWindow(QMainWindow):
         self.pending_photo = None
         self.keep_photo = False
         self.draft_dirty_baseline = (draft.skin_type, draft.erythema_grade)
-        self._navigate("assessment")
+        self._navigate("skin_type")
 
     def start_new_session(self) -> None:
         self._begin(Session(session_id=self.state.next_session_id()), editing=False)
@@ -184,7 +188,7 @@ class MainWindow(QMainWindow):
             body = "The saved session stays as it was."
         else:
             title = f"Leave without saving {sid}?"
-            body = "The selections on this screen will be lost. Use “Save as incomplete” to keep them."
+            body = "Your selections will be lost. Use “Save as incomplete” to keep them."
         self.sheet.ask(title, body, confirm="Discard", cancel="Keep editing", on_confirm=discard)
 
     def photo_captured(self, path: str) -> None:

@@ -1,4 +1,4 @@
-"""Step 2 of 4: live viewfinder and capture."""
+"""Step 3 of 5: live viewfinder and capture."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ from .base import Screen
 
 class TakePhotoScreen(Screen):
     def __init__(self, controller) -> None:
-        super().__init__(controller, "Take photo", step=2)
+        super().__init__(controller, "Take photo", step=3)
 
         row = QHBoxLayout()
         row.setSpacing(GAP)
@@ -113,7 +113,7 @@ class TakePhotoScreen(Screen):
 
     # ---- actions ---------------------------------------------------------
     def on_back(self) -> None:
-        self.controller.show_assessment()
+        self.controller.show_erythema_grade()
 
     def _keep_existing(self) -> None:
         self.controller.keep_existing_photo()
