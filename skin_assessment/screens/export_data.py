@@ -16,6 +16,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from ..export import ExportRequest
+from ..theme_legacy import STYLESHEET as LEGACY_STYLESHEET
 from ..widgets import Header, make_button
 
 
@@ -23,6 +25,9 @@ class ExportDataScreen(QWidget):
     def __init__(self, controller) -> None:
         super().__init__()
         self.controller = controller
+        # No Whyre Figma frame yet: keep the original wireframe look.
+        self.setStyleSheet(LEGACY_STYLESHEET)
+        self.setAttribute(Qt.WA_StyledBackground, True)
 
         root = QVBoxLayout(self)
         root.setContentsMargins(24, 16, 24, 16)
@@ -120,6 +125,8 @@ class ExportDataScreen(QWidget):
         self.export_btn.setMinimumHeight(60)
         root.addWidget(self.export_btn)
 
+        self.controller.exporter.progress.connect(self._on_progress)
+
     def on_enter(self) -> None:
         connected = self.controller.state.ssd_connected
         self.incomplete_cb.setText(
@@ -142,6 +149,14 @@ class ExportDataScreen(QWidget):
             )
 
     def _export(self) -> None:
-        if not self.controller.state.ssd_connected:
+        if not self.controller.state.ssd_connected or self.controller.exporter.running:
             return
-        self.controller.show_export_complete()
+        self.export_btn.setEnabled(False)
+        self.controller.start_export(ExportRequest(
+            include_complete=self.complete_cb.isChecked(),
+            include_incomplete=self.incomplete_cb.isChecked(),
+            include_photos=self.photos_cb.isChecked(),
+        ))
+
+    def _on_progress(self, done: int, total: int) -> None:
+        self.export_btn.setText(f"Exporting {done} of {total}\u2026")

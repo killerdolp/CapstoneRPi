@@ -1,66 +1,40 @@
-"""Confirm photo screen (wireframe page 3): step 3 of the new-session flow."""
+"""Review Image screen (Figma 06): review the capture, then confirm and save."""
 
 from __future__ import annotations
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import (
-    QHBoxLayout,
-    QLabel,
-    QVBoxLayout,
-    QWidget,
-)
+from PySide6.QtWidgets import QLabel
 
-from ..widgets import Header, ImagePlaceholder, make_button
+from ..theme import px
+from ..widgets import FigmaScreen, Preview, action_button
 
 
-class ConfirmPhotoScreen(QWidget):
+class ConfirmPhotoScreen(FigmaScreen):
     def __init__(self, controller) -> None:
-        super().__init__()
+        super().__init__("Review Image", step="Step 3 of 3")
         self.controller = controller
 
-        root = QVBoxLayout(self)
-        root.setContentsMargins(24, 16, 24, 16)
-        root.setSpacing(12)
+        hint = QLabel("Captured Image Preview")
+        hint.setObjectName("Hint")
+        hint.setAlignment(Qt.AlignCenter)
+        self.preview = Preview("Captured Image", 780, 299)
 
-        self.header = Header("Confirm photo (step 3)")
-        self.header.back_clicked.connect(self.controller.show_take_photo)
-        root.addWidget(self.header)
+        self.content.setSpacing(px(4))
+        self.content.addStretch(1)
+        self.content.addWidget(hint)
+        self.content.addWidget(self.preview, 0, Qt.AlignHCenter)
+        self.content.addStretch(1)
 
-        body = QHBoxLayout()
-        body.setSpacing(16)
-
-        self.preview = ImagePlaceholder("[ captured photo preview ]")
-        body.addWidget(self.preview, 3)
-
-        right = QVBoxLayout()
-        right.setSpacing(12)
-
-        helper = QLabel(
-            "Confirming stamps the save time and writes the session to file."
+        self.retake_btn = action_button(
+            "Retake", "secondary", 160, self.controller.retake_photo
         )
-        helper.setObjectName("HelperText")
-        helper.setWordWrap(True)
-        helper.setAlignment(Qt.AlignTop)
-        right.addWidget(helper)
-
-        right.addStretch(1)
-
-        self.retake_btn = make_button(
-            "Retake", "outline", self.controller.show_take_photo
-        )
-        self.confirm_btn = make_button(
-            "Confirm & save", "primary", self._confirm
-        )
-        right.addWidget(self.retake_btn)
-        right.addWidget(self.confirm_btn)
-        body.addLayout(right, 1)
-
-        root.addLayout(body, 1)
+        self.confirm_btn = action_button("Confirm && Save", "primary", 184, self._confirm)
+        self.set_footer(left=[self.retake_btn], right=[self.confirm_btn])
 
     def on_enter(self) -> None:
-        pass
+        # Show the draft capture so it can be checked before saving.
+        self.preview.show_file(self.controller.state.pending_photo_path, "Captured Image")
 
     def _confirm(self) -> None:
-        self.controller.draft_session.has_photo = True
         self.controller.save_draft(complete=True)
         self.controller.show_session_saved()

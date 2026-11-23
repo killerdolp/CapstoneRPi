@@ -1,251 +1,261 @@
-"""Shared theme constants and stylesheet for the Skin Assessment app.
+"""Theme for the Whyre 2D Imaging UI (Figma file "Whyre_UI").
 
-Designed for a 7-inch Raspberry Pi touchscreen (800x480 landscape).
-Low-fidelity black/white aesthetic matching the wireframe.
+The Figma frames are drawn at 1024x600. The app runs at 800x480, so every
+Figma measurement goes through ``px()``, which scales it by 800/1024.
+Set SCREEN_WIDTH/SCREEN_HEIGHT to 1024x600 to get the Figma sizes 1:1.
 """
 
-# Target display size for a common 7" RPi touchscreen.
+from __future__ import annotations
+
+from pathlib import Path
+
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 480
 
-# Palette (low-fi monochrome).
-BLACK = "#1a1a1a"
-WHITE = "#ffffff"
-GREY_FILL = "#d9d9d9"       # filled/primary CTA buttons in wireframe
-GREY_IMAGE = "#ececec"      # image placeholder fill
-GREY_BORDER = "#9a9a9a"
-GREY_TEXT = "#6b6b6b"       # helper/caption text
+FIGMA_WIDTH = 1024
+SCALE = SCREEN_WIDTH / FIGMA_WIDTH
+
+
+def px(figma_px: float) -> int:
+    """Convert a Figma measurement (1024-wide frame) to screen pixels."""
+    return max(1, round(figma_px * SCALE))
+
+
+# ---- Palette -----------------------------------------------------------
+WHITE = "#FFFFFF"
+NAVY = "#172B4D"        # text
+BORDER = "#CBD5E1"      # dividers, card and option outlines
+TEAL = "#176B87"        # primary actions, selected options
+CONTENT_BG = "#F8FAFC"  # content area behind cards (sampled from Figma)
+MUTED = "#64748B"       # secondary text: step label, field captions
+PREVIEW_BG = "#1F2937"  # camera / photo placeholder (sampled from Figma)
+TEAL_PRESSED = "#12566C"
+TEAL_TINT = "#E8F1F4"   # pressed state of outline buttons
+
+# ---- Type (Figma sizes, estimated from the frames) ----------------------
+FONT_FAMILY = "Inter"
+FONT_DIR = Path(__file__).resolve().parent / "assets" / "fonts"
+
+SIZE_TITLE = px(28)      # header title
+SIZE_STEP = px(16)       # "Step 1 of 3"
+SIZE_PROMPT = px(22)     # "Select the patient's skin type"
+SIZE_OPTION = px(24)     # score digits
+SIZE_BUTTON = px(20)     # button labels
+SIZE_BODY = px(18)       # info card lines, captions
+SIZE_ID = px(28)         # session ID on the New Session card
+SIZE_DATE = px(22)       # date on the New Session card
+SIZE_ROW_ID = px(20)     # session ID in the past-sessions list
+SIZE_ROW_META = px(16)   # date and status in the past-sessions list
+
+# ---- Layout (Figma px) --------------------------------------------------
+HEADER_H = px(72)
+FOOTER_H = px(88)
+MARGIN = px(32)
+BUTTON_H = px(60)
+GAP = px(16)
+RADIUS = px(8)
+CARD_RADIUS = px(12)
+
+
+def load_fonts() -> None:
+    """Register the bundled Inter faces with Qt. Call after QApplication."""
+    from PySide6.QtGui import QFontDatabase
+
+    for path in sorted(FONT_DIR.glob("Inter-*.ttf")):
+        QFontDatabase.addApplicationFont(str(path))
+
 
 STYLESHEET = f"""
+QMainWindow, QStackedWidget {{
+    background: {CONTENT_BG};
+}}
 QWidget {{
-    background: {WHITE};
-    color: {BLACK};
-    font-family: "Helvetica Neue", "Arial", sans-serif;
-    font-size: 15px;
+    font-family: "{FONT_FAMILY}";
+    color: {NAVY};
 }}
-
-/* ---- Header ---- */
-#BackButton {{
-    background: {WHITE};
-    border: 2px solid {BLACK};
-    border-radius: 6px;
-    padding: 6px 12px;
-    font-size: 15px;
-    font-weight: 600;
-}}
-#BackButton:pressed {{
-    background: {GREY_IMAGE};
-}}
-#ScreenTitle {{
-    font-size: 24px;
-    font-weight: 700;
-}}
-
-/* ---- Generic labels ---- */
-#FieldLabel {{
-    font-size: 15px;
-    color: {BLACK};
-}}
-#HelperText {{
-    font-size: 13px;
-    color: {GREY_TEXT};
-}}
-#DashedBanner {{
-    border: 2px dashed {BLACK};
-    border-radius: 6px;
-    padding: 8px 12px;
-    font-size: 14px;
-}}
-
-/* ---- Option toggle buttons (skin type / erythema) ---- */
-#OptionButton {{
-    background: {WHITE};
-    border: 2px solid {BLACK};
-    border-radius: 6px;
-    font-size: 20px;
-    font-weight: 700;
-    padding: 10px;
-}}
-#OptionButton:checked {{
-    background: {BLACK};
-    color: {WHITE};
-}}
-
-/* ---- Standard (outline) buttons ---- */
-QPushButton[variant="outline"] {{
-    background: {WHITE};
-    border: 2px solid {BLACK};
-    border-radius: 6px;
-    padding: 12px 16px;
-    font-size: 16px;
-    font-weight: 700;
-}}
-QPushButton[variant="outline"]:pressed {{
-    background: {GREY_IMAGE};
-}}
-
-/* ---- Primary (filled grey) CTA buttons ---- */
-QPushButton[variant="primary"] {{
-    background: {GREY_FILL};
-    border: 2px solid {GREY_FILL};
-    border-radius: 6px;
-    padding: 12px 16px;
-    font-size: 16px;
-    font-weight: 700;
-}}
-QPushButton[variant="primary"]:pressed {{
-    background: #c7c7c7;
-}}
-
-/* ---- Disabled CTA ---- */
-QPushButton[variant="primary"]:disabled {{
-    background: {GREY_IMAGE};
-    border-color: {GREY_IMAGE};
-    color: {GREY_BORDER};
-}}
-
-/* ---- Home tiles ---- */
-QPushButton[variant="tile"] {{
-    background: {WHITE};
-    border: 2px solid {BLACK};
-    border-radius: 8px;
-    font-size: 18px;
-    font-weight: 700;
-    padding: 12px;
-}}
-QPushButton[variant="tile"][accent="true"] {{
-    background: {GREY_FILL};
-    border-color: {BLACK};
-}}
-QPushButton[variant="tile"]:pressed {{
-    background: {GREY_IMAGE};
-}}
-
-/* ---- Image placeholders ---- */
-#ImagePlaceholder {{
-    background: {GREY_IMAGE};
-    border: 1px solid {GREY_BORDER};
-    color: {GREY_TEXT};
-    font-size: 15px;
-}}
-
-/* ---- Cards / framed boxes ---- */
-#Card {{
-    border: 2px solid {BLACK};
-    border-radius: 6px;
-    background: {WHITE};
-}}
-#DashedCard {{
-    border: 2px dashed {BLACK};
-    border-radius: 6px;
-    background: {WHITE};
-}}
-#WarningCard {{
-    border: 2px solid {BLACK};
-    border-radius: 6px;
-    background: {GREY_FILL};
-}}
-#WarningCard QLabel {{
-    background: transparent;
-}}
-#Card QLabel, #DashedCard QLabel, #WarningCard QCheckBox {{
+QLabel {{
     background: transparent;
 }}
 
-/* ---- Status pills ---- */
-#StatusComplete {{
-    background: {BLACK};
-    color: {WHITE};
-    border-radius: 4px;
-    padding: 4px 10px;
-    font-size: 12px;
-    font-weight: 700;
-}}
-#StatusIncomplete {{
-    background: {WHITE};
-    color: {BLACK};
-    border: 2px dashed {BLACK};
-    border-radius: 4px;
-    padding: 2px 8px;
-    font-size: 12px;
-    font-weight: 700;
-}}
-
-/* ---- Filter chips (past sessions) ---- */
-QPushButton[variant="chip"] {{
-    background: {WHITE};
-    border: 2px solid {BLACK};
-    border-radius: 6px;
-    padding: 8px 14px;
-    font-size: 14px;
-    font-weight: 700;
-}}
-QPushButton[variant="chip"]:checked {{
-    background: {BLACK};
-    color: {WHITE};
-}}
-QPushButton[variant="chip"][dashed="true"] {{
-    border: 2px dashed {BLACK};
-}}
-
-/* ---- Session rows ---- */
-#SessionRow {{
-    border: 2px solid {BLACK};
-    border-radius: 6px;
-    background: {WHITE};
-}}
-#SessionRowIncomplete {{
-    border: 2px dashed {BLACK};
-    border-radius: 6px;
-    background: {WHITE};
-}}
-#RowId {{
-    font-size: 17px;
-    font-weight: 700;
-}}
-#RowDate {{
-    font-size: 13px;
-    color: {GREY_TEXT};
-}}
-#RowThumb {{
-    background: {GREY_IMAGE};
-    border: 1px solid {GREY_BORDER};
-    color: {GREY_TEXT};
-    font-size: 11px;
-}}
-#RowThumbEmpty {{
-    background: {WHITE};
-    border: 2px dashed {BLACK};
-    color: {GREY_TEXT};
-    font-size: 11px;
-}}
-
-/* ---- Checkboxes ---- */
-QCheckBox {{
-    font-size: 15px;
-    spacing: 8px;
-}}
-QCheckBox::indicator {{
-    width: 20px;
-    height: 20px;
-    border: 2px solid {BLACK};
-    border-radius: 3px;
-    background: {WHITE};
-}}
-QCheckBox::indicator:checked {{
-    background: {BLACK};
-}}
-
-#CardTitle {{
-    font-size: 16px;
-    font-weight: 700;
-}}
-#ValueStrong {{
-    font-size: 15px;
-    font-weight: 700;
-}}
-#ScrollArea, #ScrollArea > QWidget > QWidget {{
+/* ---- Screen frame ---- */
+#HeaderBar {{
     background: {WHITE};
     border: none;
+    border-bottom: 1px solid {BORDER};
+}}
+#HeaderTitle {{
+    font-size: {SIZE_TITLE}px;
+    font-weight: 600;
+}}
+#StepLabel {{
+    font-size: {SIZE_STEP}px;
+    font-weight: 600;
+    color: {MUTED};
+}}
+#Content {{
+    background: {CONTENT_BG};
+    border: none;
+}}
+#FooterBar {{
+    background: {WHITE};
+    border: none;
+    border-top: 1px solid {BORDER};
+}}
+
+/* ---- Buttons ---- */
+QPushButton[variant="primary"] {{
+    background: {TEAL};
+    color: {WHITE};
+    border: 1px solid {TEAL};
+    border-radius: {RADIUS}px;
+    font-size: {SIZE_BUTTON}px;
+    font-weight: 600;
+    padding: 0 {px(12)}px;
+}}
+QPushButton[variant="primary"]:pressed {{
+    background: {TEAL_PRESSED};
+    border-color: {TEAL_PRESSED};
+}}
+QPushButton[variant="primary"]:disabled {{
+    background: {BORDER};
+    border-color: {BORDER};
+    color: {WHITE};
+}}
+QPushButton[variant="secondary"] {{
+    background: {WHITE};
+    color: {TEAL};
+    border: 1px solid {TEAL};
+    border-radius: {RADIUS}px;
+    font-size: {SIZE_BUTTON}px;
+    font-weight: 600;
+    padding: 0 {px(12)}px;
+}}
+QPushButton[variant="secondary"]:pressed {{
+    background: {TEAL_TINT};
+}}
+
+/* Filter chips: outline, filled teal when active. */
+QPushButton[variant="chip"] {{
+    background: {WHITE};
+    color: {TEAL};
+    border: 1px solid {TEAL};
+    border-radius: {RADIUS}px;
+    font-size: {SIZE_BUTTON}px;
+    font-weight: 600;
+}}
+QPushButton[variant="chip"]:checked {{
+    background: {TEAL};
+    color: {WHITE};
+}}
+
+/* Score / grade options. */
+QPushButton[variant="option"] {{
+    background: {WHITE};
+    color: {NAVY};
+    border: 2px solid {BORDER};
+    border-radius: {RADIUS}px;
+    font-size: {SIZE_OPTION}px;
+    font-weight: 600;
+}}
+QPushButton[variant="option"]:pressed {{
+    background: {TEAL_TINT};
+}}
+QPushButton[variant="option"]:checked {{
+    background: {TEAL};
+    color: {WHITE};
+    border-color: {TEAL};
+}}
+
+/* ---- Text ---- */
+#Prompt {{
+    font-size: {SIZE_PROMPT}px;
+    font-weight: 600;
+}}
+#Hint {{
+    font-size: {SIZE_BODY}px;
+    font-weight: 600;
+}}
+#Caption {{
+    font-size: {SIZE_BODY}px;
+    font-weight: 500;
+    color: {MUTED};
+}}
+#BigValue {{
+    font-size: {SIZE_ID}px;
+    font-weight: 600;
+}}
+#DateValue {{
+    font-size: {SIZE_DATE}px;
+    font-weight: 600;
+}}
+#InfoLine {{
+    font-size: {SIZE_BODY}px;
+}}
+#DetailLabel {{
+    font-size: {SIZE_BODY}px;
+    color: {MUTED};
+}}
+#DetailValue {{
+    font-size: {SIZE_BODY}px;
+    font-weight: 600;
+}}
+
+/* ---- Cards ---- */
+#Card {{
+    background: {WHITE};
+    border: 1px solid {BORDER};
+    border-radius: {CARD_RADIUS}px;
+}}
+#InfoCard {{
+    background: {WHITE};
+    border: 1px solid {MUTED};
+    border-radius: {RADIUS}px;
+}}
+#Divider {{
+    background: {BORDER};
+    border: none;
+}}
+#Preview {{
+    background: {PREVIEW_BG};
+    color: {WHITE};
+    font-size: {SIZE_BUTTON}px;
+    font-weight: 600;
+}}
+
+/* ---- Past sessions ---- */
+#SessionCard {{
+    background: {WHITE};
+    border: 1px solid {BORDER};
+    border-radius: {RADIUS}px;
+}}
+#SessionCard[pressed="true"] {{
+    background: {TEAL_TINT};
+}}
+#RowId {{
+    font-size: {SIZE_ROW_ID}px;
+    font-weight: 600;
+}}
+#RowMeta {{
+    font-size: {SIZE_ROW_META}px;
+    font-weight: 600;
+}}
+QScrollArea#SessionList, QScrollArea#SessionList > QWidget > QWidget {{
+    background: {CONTENT_BG};
+    border: none;
+}}
+QScrollBar:vertical {{
+    background: transparent;
+    width: {px(8)}px;
+    margin: 0;
+}}
+QScrollBar::handle:vertical {{
+    background: {BORDER};
+    border-radius: {px(4)}px;
+    min-height: {px(40)}px;
+}}
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical,
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{
+    height: 0;
+    background: none;
 }}
 """

@@ -7,8 +7,17 @@ built with PySide6 and sized for a 7-inch Raspberry Pi touchscreen
 ## Run
 
 ```bash
-.venv/bin/python -m skin_assessment.main
+.venv/bin/python -m skin_assessment.main          # ~/skin_assessment_data/sessions.db
+.venv/bin/python -m skin_assessment.main --demo   # demo.db, seeded with 4 sample sessions
 ```
+
+`--db PATH` (or `$SKIN_ASSESSMENT_DB`) picks another database file.
+
+Sessions are stored in SQLite (`sessions` table: `id`, `image_url`,
+`skin_type`, `erythema_grade`, `saved_at`, `updated_at`). The `id` column
+generates the session ID, shown as `SES-000123`. The UI follows the Whyre
+Figma design (1024×600 frames, scaled to 800×480 by `theme.px()`). Export data
+and Export failed keep the original wireframe look (`theme_legacy.py`).
 
 ## Screens (mapped to the wireframe)
 

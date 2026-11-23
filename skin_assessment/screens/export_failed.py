@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from ..theme_legacy import STYLESHEET as LEGACY_STYLESHEET
 from ..widgets import make_button
 
 
@@ -17,6 +18,9 @@ class ExportFailedScreen(QWidget):
     def __init__(self, controller) -> None:
         super().__init__()
         self.controller = controller
+        # No Whyre Figma frame yet: keep the original wireframe look.
+        self.setStyleSheet(LEGACY_STYLESHEET)
+        self.setAttribute(Qt.WA_StyledBackground, True)
 
         root = QVBoxLayout(self)
         root.setContentsMargins(24, 20, 24, 16)
