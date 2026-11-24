@@ -14,9 +14,9 @@ insert and ``updated_at`` on every save. A session counts as edited once
 ``updated_at`` is later than ``saved_at``.
 
 Photos live in ``photos/`` next to the database. A capture is a draft: it is
-written to ``photos/pending.png`` and nothing else changes. Only
+written to ``photos/pending.jpg`` and nothing else changes. Only
 ``save_session(..., commit_photo=True)`` (Confirm & Save) moves it to
-``photos/SES-000123.png``, sets ``image_url`` (relative to the database
+``photos/SES-000123.jpg``, sets ``image_url`` (relative to the database
 folder) and updates the database. Every other exit discards the draft.
 """
 
@@ -52,12 +52,12 @@ def parse_session_id(session_id: str) -> int:
 
 
 PHOTO_DIR = "photos"
-PENDING_PHOTO = "pending.png"
+PENDING_PHOTO = "pending.jpg"
 
 
 def photo_path_for(session_id: str) -> str:
     """Where a session's photo is stored, relative to the database folder."""
-    return f"{PHOTO_DIR}/{session_id}.png"
+    return f"{PHOTO_DIR}/{session_id}.jpg"
 
 
 def _display_time(value: Optional[datetime]) -> str:
@@ -229,7 +229,7 @@ class AppState:
             sid = self.next_session_id()
             if photo:
                 render_scene(1600, 1200, t=i * 1.7, seed=11 + i).save(
-                    str(self.data_dir / photo_path_for(sid)), "PNG"
+                    str(self.data_dir / photo_path_for(sid)), "JPG", 95
                 )
             self.store.insert(
                 Session(
@@ -294,7 +294,7 @@ class AppState:
         """Insert a new session or update an existing one; return the stored row.
 
         With commit_photo, the draft photo becomes the session's photo: it is
-        moved to photos/<id>.png, then the database is updated. If the
+        moved to photos/<id>.jpg, then the database is updated. If the
         database write fails, the file change is undone. Without
         commit_photo, any draft photo is discarded and image_url is unchanged.
         """

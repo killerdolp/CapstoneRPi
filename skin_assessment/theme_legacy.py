@@ -3,7 +3,23 @@
 Only the Export data and Export failed screens still use it, until they have
 frames in the Whyre Figma design. Those screens apply it to themselves with
 ``setStyleSheet(STYLESHEET)``; everything else uses ``theme.STYLESHEET``.
+
+The wireframe was drawn at 800x480. ``lpx()`` scales its pixel sizes to the
+device screen (``theme.SCREEN_WIDTH``).
 """
+
+import re
+
+from .theme import SCREEN_WIDTH
+
+WIREFRAME_WIDTH = 800
+LEGACY_SCALE = SCREEN_WIDTH / WIREFRAME_WIDTH
+
+
+def lpx(wireframe_px: float) -> int:
+    """Convert a wireframe measurement (800-wide screen) to screen pixels."""
+    return max(1, round(wireframe_px * LEGACY_SCALE))
+
 
 # Palette (low-fi monochrome).
 BLACK = "#1a1a1a"
@@ -246,3 +262,6 @@ QCheckBox::indicator:checked {{
     border: none;
 }}
 """
+
+# Scale every "<n>px" in the wireframe stylesheet to the device screen.
+STYLESHEET = re.sub(r"(\d+)px", lambda m: f"{lpx(int(m.group(1)))}px", STYLESHEET)

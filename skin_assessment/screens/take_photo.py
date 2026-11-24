@@ -1,6 +1,6 @@
 """Capture Image screen (Figma 05): step 3 of the new-session flow.
 
-The camera writes the still to the draft path (photos/pending.png). The
+The camera writes the still to the draft path (photos/pending.jpg). The
 session and database change only on Confirm & Save; see AppState.save_session.
 """
 

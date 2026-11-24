@@ -26,6 +26,7 @@ from PySide6.QtWidgets import (
 )
 
 from .theme import FOOTER_H, GAP, HEADER_H, MARGIN, px
+from .theme_legacy import lpx
 
 
 # ---------------------------------------------------------------------------
@@ -248,7 +249,7 @@ class Header(QWidget):
         super().__init__(parent)
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(16)
+        layout.setSpacing(lpx(16))
 
         if show_back:
             self.back_button = QPushButton("\u2039 Back")
@@ -277,7 +278,7 @@ class OptionButton(QPushButton):
         self.setCheckable(True)
         self.setCursor(Qt.PointingHandCursor)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
-        self.setMinimumHeight(56)
+        self.setMinimumHeight(lpx(56))
 
 
 class ImagePlaceholder(QLabel):

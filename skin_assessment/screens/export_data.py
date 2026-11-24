@@ -17,7 +17,7 @@ from PySide6.QtWidgets import (
 )
 
 from ..export import ExportRequest
-from ..theme_legacy import STYLESHEET as LEGACY_STYLESHEET
+from ..theme_legacy import STYLESHEET as LEGACY_STYLESHEET, lpx
 from ..widgets import Header, make_button
 
 
@@ -30,25 +30,25 @@ class ExportDataScreen(QWidget):
         self.setAttribute(Qt.WA_StyledBackground, True)
 
         root = QVBoxLayout(self)
-        root.setContentsMargins(24, 16, 24, 16)
-        root.setSpacing(12)
+        root.setContentsMargins(lpx(24), lpx(16), lpx(24), lpx(16))
+        root.setSpacing(lpx(12))
 
         self.header = Header("Export data")
         self.header.back_clicked.connect(self.controller.go_home)
         root.addWidget(self.header)
 
         columns = QHBoxLayout()
-        columns.setSpacing(16)
+        columns.setSpacing(lpx(16))
 
         # ---- Left column: Data to export + Output ----
         left = QVBoxLayout()
-        left.setSpacing(12)
+        left.setSpacing(lpx(12))
 
         data_card = QWidget()
         data_card.setObjectName("Card")
         data_layout = QVBoxLayout(data_card)
-        data_layout.setContentsMargins(16, 12, 16, 12)
-        data_layout.setSpacing(8)
+        data_layout.setContentsMargins(lpx(16), lpx(12), lpx(16), lpx(12))
+        data_layout.setSpacing(lpx(8))
         title = QLabel("Data to export")
         title.setObjectName("CardTitle")
         data_layout.addWidget(title)
@@ -66,9 +66,9 @@ class ExportDataScreen(QWidget):
         output_card = QWidget()
         output_card.setObjectName("Card")
         out_grid = QGridLayout(output_card)
-        out_grid.setContentsMargins(16, 12, 16, 12)
-        out_grid.setHorizontalSpacing(16)
-        out_grid.setVerticalSpacing(8)
+        out_grid.setContentsMargins(lpx(16), lpx(12), lpx(16), lpx(12))
+        out_grid.setHorizontalSpacing(lpx(16))
+        out_grid.setVerticalSpacing(lpx(8))
         out_title = QLabel("Output")
         out_title.setObjectName("CardTitle")
         out_grid.addWidget(out_title, 0, 0, 1, 2)
@@ -88,13 +88,13 @@ class ExportDataScreen(QWidget):
 
         # ---- Right column: Destination + optional warning ----
         right = QVBoxLayout()
-        right.setSpacing(12)
+        right.setSpacing(lpx(12))
 
         self.dest_card = QWidget()
         self.dest_card.setObjectName("DashedCard")
         dest_layout = QVBoxLayout(self.dest_card)
-        dest_layout.setContentsMargins(16, 12, 16, 12)
-        dest_layout.setSpacing(6)
+        dest_layout.setContentsMargins(lpx(16), lpx(12), lpx(16), lpx(12))
+        dest_layout.setSpacing(lpx(6))
         dest_title = QLabel("Destination")
         dest_title.setObjectName("CardTitle")
         dest_layout.addWidget(dest_title)
@@ -107,8 +107,8 @@ class ExportDataScreen(QWidget):
         self.warning_card = QWidget()
         self.warning_card.setObjectName("WarningCard")
         warn_layout = QVBoxLayout(self.warning_card)
-        warn_layout.setContentsMargins(16, 12, 16, 12)
-        warn_layout.setSpacing(4)
+        warn_layout.setContentsMargins(lpx(16), lpx(12), lpx(16), lpx(12))
+        warn_layout.setSpacing(lpx(4))
         warn_title = QLabel("SSD not connected")
         warn_title.setObjectName("CardTitle")
         warn_layout.addWidget(warn_title)
@@ -122,7 +122,7 @@ class ExportDataScreen(QWidget):
 
         # ---- Footer: Export button ----
         self.export_btn = make_button("Export to SSD", "primary", self._export)
-        self.export_btn.setMinimumHeight(60)
+        self.export_btn.setMinimumHeight(lpx(60))
         root.addWidget(self.export_btn)
 
         self.controller.exporter.progress.connect(self._on_progress)

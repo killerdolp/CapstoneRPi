@@ -1,16 +1,17 @@
 """Theme for the Whyre 2D Imaging UI (Figma file "Whyre_UI").
 
-The Figma frames are drawn at 1024x600. The app runs at 800x480, so every
-Figma measurement goes through ``px()``, which scales it by 800/1024.
-Set SCREEN_WIDTH/SCREEN_HEIGHT to 1024x600 to get the Figma sizes 1:1.
+The Figma frames are drawn at 1024x600. The device display is 1280x800, so
+every Figma measurement goes through ``px()``, which scales it by 1280/1024.
+The display is taller than the Figma frame (16:10 vs 128:75), so the extra
+height goes to the content area between the header and footer.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
 
-SCREEN_WIDTH = 800
-SCREEN_HEIGHT = 480
+SCREEN_WIDTH = 1280
+SCREEN_HEIGHT = 800
 
 FIGMA_WIDTH = 1024
 SCALE = SCREEN_WIDTH / FIGMA_WIDTH

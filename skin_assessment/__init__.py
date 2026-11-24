@@ -1,1 +1,1 @@
-"""Skin Assessment front-end (PySide6) for a 7-inch Raspberry Pi touchscreen."""
+"""Skin Assessment front-end (PySide6) for a 1280x800 Raspberry Pi touchscreen."""

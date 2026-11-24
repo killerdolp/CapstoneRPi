@@ -9,8 +9,8 @@
 * ``UnavailableCamera`` is used on the Pi when no camera is detected, so the
   UI can say so plainly instead of pretending.
 
-Stills are written as PNG to the path given to ``capture()``. The app passes
-its draft path (``photos/pending.png``); see ``AppState.save_session``.
+Stills are written as JPEG (quality 95) to the path given to ``capture()``. The app passes
+its draft path (``photos/pending.jpg``); see ``AppState.save_session``.
 
 Picamera2 is installed from apt on Raspberry Pi OS (``python3-picamera2``);
 create the virtualenv with ``--system-site-packages`` so it is importable.
@@ -46,7 +46,7 @@ class CameraState(Enum):
 
 class CameraBackend(QObject):
     frame_ready = Signal(QImage)
-    capture_finished = Signal(str)   # path of the written PNG
+    capture_finished = Signal(str)   # path of the written JPEG
     capture_failed = Signal(str)     # human-readable reason
 
     state: CameraState = CameraState.UNAVAILABLE
@@ -105,7 +105,7 @@ class SimulatedCamera(CameraBackend):
 
         def finish() -> None:
             image = render_scene(*self.STILL, t)
-            if image.save(str(path), "PNG"):
+            if image.save(str(path), "JPG", 95):
                 self.capture_finished.emit(str(path))
             else:
                 self.capture_failed.emit("Could not write the photo to storage.")
@@ -187,6 +187,7 @@ class PiCamera(CameraBackend):
         self._still_cfg = picam2.create_still_configuration(
             main={"size": (sensor_w, sensor_h)}
         )
+        picam2.options["quality"] = 95
         picam2.configure(self._preview_cfg)
 
         self._requests: "queue.Queue[Path]" = queue.Queue()
@@ -260,8 +261,7 @@ class PiCamera(CameraBackend):
             if self._has_af:
                 cam.set_controls({"AfMode": self._controls.AfModeEnum.Auto})
                 cam.autofocus_cycle()
-            # Picamera2 picks the encoder from the extension (.png -> PNG).
-            cam.switch_mode_and_capture_file(self._still_cfg, str(path), format="png")
+            cam.switch_mode_and_capture_file(self._still_cfg, str(path))
             self.capture_finished.emit(str(path))
         except Exception as exc:  # pragma: no cover - hardware
             self.capture_failed.emit(f"Capture failed: {exc}")

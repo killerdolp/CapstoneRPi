@@ -10,7 +10,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from ..theme_legacy import STYLESHEET as LEGACY_STYLESHEET
+from ..theme_legacy import STYLESHEET as LEGACY_STYLESHEET, lpx
 from ..widgets import make_button
 
 
@@ -23,8 +23,8 @@ class ExportFailedScreen(QWidget):
         self.setAttribute(Qt.WA_StyledBackground, True)
 
         root = QVBoxLayout(self)
-        root.setContentsMargins(24, 20, 24, 16)
-        root.setSpacing(16)
+        root.setContentsMargins(lpx(24), lpx(20), lpx(24), lpx(16))
+        root.setSpacing(lpx(16))
 
         title = QLabel("Export failed")
         title.setObjectName("ScreenTitle")
@@ -33,7 +33,7 @@ class ExportFailedScreen(QWidget):
         banner = QLabel("[ export interrupted \u2014 SSD not connected ]")
         banner.setObjectName("ImagePlaceholder")
         banner.setAlignment(Qt.AlignCenter)
-        banner.setMinimumHeight(70)
+        banner.setMinimumHeight(lpx(70))
         banner.setStyleSheet("font-weight: 700;")
         root.addWidget(banner)
 
@@ -41,9 +41,9 @@ class ExportFailedScreen(QWidget):
         card = QWidget()
         card.setObjectName("Card")
         grid = QGridLayout(card)
-        grid.setContentsMargins(16, 14, 16, 14)
-        grid.setHorizontalSpacing(16)
-        grid.setVerticalSpacing(10)
+        grid.setContentsMargins(lpx(16), lpx(14), lpx(16), lpx(14))
+        grid.setHorizontalSpacing(lpx(16))
+        grid.setVerticalSpacing(lpx(10))
         self._add_row(grid, 0, "Export status", "Failed during export")
         self._add_row(grid, 1, "Export time", "Interrupted")
         self._add_row(grid, 2, "Destination", "Clinical data SSD")
@@ -62,11 +62,11 @@ class ExportFailedScreen(QWidget):
         self.back_btn = make_button(
             "\u2039 Back to export data", "outline", self.controller.show_export
         )
-        self.back_btn.setMinimumHeight(54)
+        self.back_btn.setMinimumHeight(lpx(54))
         root.addWidget(self.back_btn)
 
         self.retry_btn = make_button("Retry export to SSD", "primary")
-        self.retry_btn.setMinimumHeight(60)
+        self.retry_btn.setMinimumHeight(lpx(60))
         self.retry_btn.setEnabled(False)
         self.retry_btn.setText(
             "Retry export to SSD\nUnavailable until an SSD is connected"
