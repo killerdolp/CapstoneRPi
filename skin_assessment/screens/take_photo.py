@@ -12,7 +12,7 @@ from PySide6.QtWidgets import QLabel
 
 from ..camera import CameraState
 from ..theme import px
-from ..widgets import FigmaScreen, Preview, action_button
+from ..widgets import FigmaScreen, FittedPreview, action_button
 
 
 class TakePhotoScreen(FigmaScreen):
@@ -26,13 +26,14 @@ class TakePhotoScreen(FigmaScreen):
         self.hint.setObjectName("Hint")
         self.hint.setAlignment(Qt.AlignCenter)
         # Camera viewfinder.
-        self.viewfinder = Preview("Live Camera Preview", 780, 299)
+        # Box shape follows the sensor (4:3, 16:9, ...) so frames fill it.
+        sw, sh = controller.camera.still_size
+        aspect = sw / sh if sw and sh else 4 / 3
+        self.viewfinder = FittedPreview("Live Camera Preview", aspect)
 
         self.content.setSpacing(px(4))
-        self.content.addStretch(1)
         self.content.addWidget(self.hint)
-        self.content.addWidget(self.viewfinder, 0, Qt.AlignHCenter)
-        self.content.addStretch(1)
+        self.content.addWidget(self.viewfinder, 1)
 
         self.capture_btn = action_button("Capture", "primary", 184, self._capture)
         self.save_btn = action_button("Save", "secondary", 160, self._save_incomplete)

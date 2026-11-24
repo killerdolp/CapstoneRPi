@@ -6,7 +6,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QLabel
 
 from ..theme import px
-from ..widgets import FigmaScreen, Preview, action_button
+from ..widgets import FigmaScreen, FittedPreview, action_button
 
 
 class ConfirmPhotoScreen(FigmaScreen):
@@ -17,13 +17,14 @@ class ConfirmPhotoScreen(FigmaScreen):
         hint = QLabel("Captured Image Preview")
         hint.setObjectName("Hint")
         hint.setAlignment(Qt.AlignCenter)
-        self.preview = Preview("Captured Image", 780, 299)
+        # Box shape follows the sensor (4:3, 16:9, ...) so frames fill it.
+        sw, sh = controller.camera.still_size
+        aspect = sw / sh if sw and sh else 4 / 3
+        self.preview = FittedPreview("Captured Image", aspect)
 
         self.content.setSpacing(px(4))
-        self.content.addStretch(1)
         self.content.addWidget(hint)
-        self.content.addWidget(self.preview, 0, Qt.AlignHCenter)
-        self.content.addStretch(1)
+        self.content.addWidget(self.preview, 1)
 
         self.retake_btn = action_button(
             "Retake", "secondary", 160, self.controller.retake_photo

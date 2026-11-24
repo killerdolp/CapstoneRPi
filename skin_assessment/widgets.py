@@ -191,6 +191,74 @@ class Preview(QLabel):
             self.show_image(image)
 
 
+class FittedPreview(QWidget):
+    """A Preview that fills the space its layout gives it, at the frame's
+    aspect ratio, instead of a fixed Figma box.
+
+    The dark box is the largest rectangle of ``aspect`` (width / height) that
+    fits the available area, centred, so the camera frame fills it edge to
+    edge with no letterbox bars. The aspect follows the frames it is shown.
+    """
+
+    def __init__(self, caption: str, aspect: float = 4 / 3) -> None:
+        super().__init__()
+        self._aspect = aspect
+        self._last: Optional[QImage] = None
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.box = QLabel(caption, self)
+        self.box.setObjectName("Preview")
+        self.box.setAlignment(Qt.AlignCenter)
+
+    def set_aspect(self, aspect: float) -> None:
+        if aspect > 0 and abs(aspect - self._aspect) > 1e-3:
+            self._aspect = aspect
+            self._fit()
+
+    def resizeEvent(self, event) -> None:  # noqa: N802 - Qt override
+        super().resizeEvent(event)
+        self._fit()
+
+    def _fit(self) -> None:
+        w, h = self.width(), self.height()
+        if w <= 0 or h <= 0:
+            return
+        if w / h > self._aspect:
+            bw, bh = round(h * self._aspect), h
+        else:
+            bw, bh = w, round(w / self._aspect)
+        self.box.setGeometry((w - bw) // 2, (h - bh) // 2, bw, bh)
+        if self._last is not None:
+            self._paint(self._last)
+
+    def show_caption(self, caption: str) -> None:
+        self._last = None
+        self.box.clear()
+        self.box.setText(caption)
+
+    def show_image(self, image: QImage) -> None:
+        if image.isNull():
+            return
+        self._last = image
+        self.set_aspect(image.width() / image.height())
+        self._paint(image)
+
+    def _paint(self, image: QImage) -> None:
+        # The box already has the frame's aspect, so "expanding" only trims
+        # the odd rounding pixel instead of leaving a dark sliver on one edge.
+        size = self.box.size()
+        scaled = image.scaled(size, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
+        x = (scaled.width() - size.width()) // 2
+        y = (scaled.height() - size.height()) // 2
+        self.box.setPixmap(QPixmap.fromImage(scaled.copy(x, y, size.width(), size.height())))
+
+    def show_file(self, path: Optional[Path], fallback: str) -> None:
+        image = QImage(str(path)) if path is not None and path.exists() else QImage()
+        if image.isNull():
+            self.show_caption(fallback)
+        else:
+            self.show_image(image)
+
+
 class InfoCard(QFrame):
     """Bordered card of "Label: value" lines with the value in bold."""
 
